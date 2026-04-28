@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# ─────────────────────────────────────────────────────────────
+# Editor / IDE / OS
+# ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─────────────────────────────────────────────────────────────
+# Claude Code (impostazioni locali, non da pubblicare)
+# ─────────────────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+
+# ─────────────────────────────────────────────────────────────
+# Sessioni di login / cookie / credenziali (MAI committare)
+# ─────────────────────────────────────────────────────────────
+auth_state.json
+*auth_state*.json
+cookies.txt
+*_cookies.txt
+*cookies*.txt
+
+# ─────────────────────────────────────────────────────────────
+# Dataset di input (dati scrapati da Apify, personali)
+# ─────────────────────────────────────────────────────────────
+*.csv
+!*.example.csv
+!*.sample.csv
+
+# ─────────────────────────────────────────────────────────────
+# Output generati a runtime (stato per-utente)
+# ─────────────────────────────────────────────────────────────
+listings_ready.csv
+progress.json
+progress_*.json
+
+# ─────────────────────────────────────────────────────────────
+# Artefatti runtime (log, screenshot, snapshot HTML)
+# ─────────────────────────────────────────────────────────────
+logs/
+screenshots/
+snapshots/
+*.log
+
+# ─────────────────────────────────────────────────────────────
+# Browser / Playwright
+# ─────────────────────────────────────────────────────────────
+.playwright/
+playwright-report/
+test-results/
+
+# ─────────────────────────────────────────────────────────────
+# Misc
+# ─────────────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.orig

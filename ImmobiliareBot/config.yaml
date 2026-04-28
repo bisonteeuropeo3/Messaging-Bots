@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────
+# Configurazione bot — modifica questi valori a tuo piacimento
+# ─────────────────────────────────────────────────────────────
+
+# Timing tra messaggi (secondi) — simula comportamento umano
+delay_min: 15          # minimo secondi tra un messaggio e l'altro
+delay_max: 45          # massimo secondi
+
+# Pausa lunga ogni N messaggi (simula "leggere altri annunci")
+pause_every_min: 4     # pausa dopo minimo N messaggi
+pause_every_max: 7     # pausa dopo massimo N messaggi
+pause_duration_min: 40   # pausa minima in secondi (~40s)
+pause_duration_max: 120  # pausa massima in secondi (2 min)
+
+# Cooldown dopo errore
+error_cooldown_min: 45   # attesa minima dopo errore (45s)
+error_cooldown_max: 90   # attesa massima dopo errore (1.5 min)
+
+# Limiti di sicurezza
+max_per_session: 0     # 0 = nessun limite per sessione
+max_per_hour: 60       # massimo messaggi per ora
+max_per_day: 500       # massimo messaggi per giorno (per piattaforma)
+max_consecutive_errors: 3  # stop dopo N errori consecutivi
+
+# Browser
+headless: false
+slow_mo: 50            # rallenta ogni azione browser (ms)
+typing_delay_min: 50   # velocita' battitura minima (ms per carattere)
+typing_delay_max: 130  # velocita' battitura massima (ms per carattere)
+
+# Viewport random (simula schermi diversi)
+viewport_widths: [1280, 1366, 1440, 1536, 1600, 1920]
+viewport_heights: [800, 900, 960, 1024, 1080]
