@@ -1,103 +1,103 @@
 # Messaging Bots — Immobiliare & Subito
 
-Bot per l'invio automatico di messaggi personalizzati su **immobiliare.it** e **subito.it**.
-Pensati per contattare in massa gli inserzionisti di annunci immobiliari, simulando comportamento umano per evitare blocchi anti-bot.
+Bots for sending automated personalized messages on **immobiliare.it** and **subito.it**.
+Designed to contact real-estate listing advertisers in bulk, simulating human behavior to avoid anti-bot blocks.
 
-Il repo contiene due bot indipendenti, uno per piattaforma:
+The repo contains two independent bots, one per platform:
 
 ```
-ImmobiliareBot/   → bot per immobiliare.it
-SubitoBot/        → bot per subito.it
+ImmobiliareBot/   → bot for immobiliare.it
+SubitoBot/        → bot for subito.it
 ```
 
 ---
 
-## A cosa servono
+## What they do
 
-Ogni bot fa due cose:
+Each bot does two things:
 
-1. **Genera messaggi personalizzati** a partire da un dataset di annunci (nome dell'inserzionista, indirizzo, prezzo, ecc.).
-2. **Invia i messaggi** in automatico tramite browser (Playwright + Chromium), con timing umano, pause, viewport randomizzati e protezioni anti-detection.
+1. **Generates personalized messages** from a dataset of listings (advertiser name, address, price, etc.).
+2. **Sends the messages** automatically through a browser (Playwright + Chromium), with human-like timing, pauses, randomized viewports and anti-detection protections.
 
-Il bot tiene traccia di cosa ha già inviato (`progress.json`) e riprende da dove si era fermato.
+The bot tracks what it has already sent (`progress.json`) and resumes from where it left off.
 
 ---
 
-## Cosa serve per usarli
+## What you need
 
-### 1. Dipendenze
+### 1. Dependencies
 
 ```bash
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 2. Dati di input
+### 2. Input data
 
-I bot leggono i dati grezzi presi da **Apify** — vanno scaricati gli scraper di immobiliare.it / subito.it dalla piattaforma [apify.com](https://apify.com) ed esportati in CSV.
+The bots read **raw data scraped from Apify** — you need to run the immobiliare.it / subito.it scrapers on [apify.com](https://apify.com) and export the results as CSV.
 
-Il file CSV va messo nella cartella del bot corrispondente:
+Place the CSV file in the corresponding bot folder:
 
-- **ImmobiliareBot/** → file `dataset_*.csv` (export dello scraper di immobiliare.it)
-- **SubitoBot/** → file `Subito_scraper*.csv` o `dataset_subito*.csv` (export dello scraper di subito.it)
+- **ImmobiliareBot/** → file `dataset_*.csv` (export from the immobiliare.it scraper)
+- **SubitoBot/** → file `Subito_scraper*.csv` or `dataset_subito*.csv` (export from the subito.it scraper)
 
-I bot prendono automaticamente il CSV piu' recente nella cartella.
+The bots automatically pick up the most recent CSV in the folder.
 
 ### 3. Login
 
-Al primo avvio il bot apre Chrome e ti chiede di fare login manualmente sulla piattaforma. La sessione viene salvata in `auth_state.json` e riutilizzata alle esecuzioni successive.
+On first launch the bot opens Chrome and asks you to log in manually on the target platform. The session is saved in `auth_state.json` and reused on subsequent runs.
 
 ---
 
-## Come si usano
+## How to use them
 
-Da dentro la cartella del bot (`ImmobiliareBot/` o `SubitoBot/`):
+From inside the bot folder (`ImmobiliareBot/` or `SubitoBot/`):
 
 ```bash
-# Step 1 — genera i messaggi a partire dal CSV di Apify
+# Step 1 — generate messages from the Apify CSV
 python generate_messages.py
 
-# Step 2 — invia i messaggi
+# Step 2 — send the messages
 python send_messages.py --total 400 --batch 50 --pause 20
 ```
 
-Vedi i `README.md` dentro ciascuna cartella per le opzioni complete.
+See the `README.md` inside each folder for the full set of options.
 
 ---
 
-## Modificare i testi e i parametri
+## Editing texts and parameters
 
-**Tutto e' nel codice.** Non c'e' un'interfaccia di configurazione separata per i template dei messaggi: la firma, le frasi di apertura, le varianti del pitch, le keyword di filtro aziende, ecc. sono **direttamente nei file `generate_messages.py`** di ciascun bot.
+**Everything lives in the code.** There is no separate configuration interface for the message templates: signature, opening lines, pitch variants, business-filter keywords, etc. are **directly inside the `generate_messages.py` file** of each bot.
 
-Per modificarli:
+To edit them:
 
-- Apri `generate_messages.py` nella cartella del bot
-- Cerca la stringa che vuoi cambiare (es. firma, template messaggio, parole chiave)
-- Modificala
+- Open `generate_messages.py` in the bot folder
+- Search for the string you want to change (e.g. signature, message template, keywords)
+- Edit it
 
-I parametri di timing, rate limit e browser si modificano invece in `config.yaml` di ciascun bot.
+Timing, rate-limit and browser parameters are configured in `config.yaml` inside each bot folder.
 
-### Consigliato: usa Claude Code
+### Recommended: use Claude Code
 
-Per orientarti nel codice e modificare le cose senza dover capire tutto a mano, conviene usare **[Claude Code](https://claude.com/claude-code)** (o un'altra IA con accesso al filesystem). Basta aprirla nella cartella del repo e chiedere cose tipo:
+To navigate the code and change things without having to understand everything manually, it's recommended to use **[Claude Code](https://claude.com/claude-code)** (or another AI with filesystem access). Just open it in the repo folder and ask things like:
 
-- "Cambia la firma dei messaggi da X a Y"
-- "Aggiungi una variante al pitch sull'agenzia"
-- "Modifica le parole chiave per filtrare le aziende"
-- "Spiegami come funziona il flusso di invio"
+- "Change the message signature from X to Y"
+- "Add a new variant to the no-agency pitch"
+- "Update the keywords used to filter out business advertisers"
+- "Explain how the sending flow works"
 
-L'IA trova i punti giusti nel codice e li modifica al posto tuo.
+The AI locates the right spots in the code and edits them for you.
 
 ---
 
-## Struttura del repo
+## Repo structure
 
 ```
 ImmobiliareBot/
-  core/                  motore condiviso (browser, scheduler, engine)
-  platforms/             selettori specifici per piattaforma
-  generate_messages.py   step 1 — genera i messaggi dal CSV
-  send_messages.py       step 2 — invia i messaggi
+  core/                  shared engine (browser, scheduler, engine)
+  platforms/             platform-specific selectors
+  generate_messages.py   step 1 — generates messages from the CSV
+  send_messages.py       step 2 — sends the messages
   config.yaml            timing, rate limit, browser
   requirements.txt
   README.md
@@ -105,7 +105,7 @@ ImmobiliareBot/
 SubitoBot/
   generate_messages.py
   send_messages.py
-  import_cookies.py      utility per importare cookie da export browser
+  import_cookies.py      utility to import cookies from a browser export
   config.yaml
   requirements.txt
   README.md
@@ -113,9 +113,9 @@ SubitoBot/
 
 ---
 
-## Note
+## Notes
 
-- I bot usano protezioni anti-detection (user agent rotanti, viewport random, `navigator.webdriver` nascosto, digitazione carattere per carattere, scroll graduale, ecc.).
-- Il rate limiting e' configurato in modo conservativo di default. Spingere oltre i limiti aumenta il rischio di blocco.
-- L'uso di una **VPN** e' consigliato per distribuire le sessioni su IP diversi.
-- I file con dati personali, sessioni di login, dataset e output sono esclusi via `.gitignore` — vedi il file alla radice del repo.
+- The bots use anti-detection protections (rotating user agents, random viewports, hidden `navigator.webdriver`, character-by-character typing, gradual scrolling, etc.).
+- Rate limiting defaults are conservative. Pushing past the limits increases the risk of being blocked.
+- Using a **VPN** is recommended to spread sessions across different IPs.
+- Files containing personal data, login sessions, datasets and outputs are excluded via `.gitignore` — see the file at the repo root.
