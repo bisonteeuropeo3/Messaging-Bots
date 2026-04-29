@@ -11,14 +11,14 @@ import glob
 import os
 
 NO_AGENCY_VARIANTS = [
-    "e nessun costo di agenzia, lavoriamo diversamente. Potrebbe interessarti?",
-    "e non siamo un'agenzia, zero commissioni. Ti va di parlarne?",
-    "e tra l'altro non chiediamo provvigioni, non siamo un'agenzia. Ti interessa?",
-    "senza costi di intermediazione. Ci facciamo una chiamata?",
-    "e nessuna provvigione, non lavoriamo come agenzia. Vuoi saperne di piu'?",
-    "e per te nessun costo, non siamo un'agenzia. Ne parliamo?",
-    "e zero spese di mediazione da parte nostra. Ti puo' interessare?",
-    "e non applichiamo commissioni di nessun tipo. Che ne dici?",
+    "e nessun costo di agenzia, lavoriamo diversamente. Volendo puoi anche attivare una protezione opzionale contro morosita', danni e con assistenza legale inclusa. Potrebbe interessarti?",
+    "e non siamo un'agenzia, zero commissioni. Se vuoi, c'e' anche la possibilita' di aggiungere una copertura opzionale per morosita', danni e assistenza legale. Ti va di parlarne?",
+    "e tra l'altro non chiediamo provvigioni, non siamo un'agenzia. Volendo, puoi attivare una tutela opzionale contro morosita' e danni, con assistenza legale. Ti interessa?",
+    "senza costi di intermediazione. Se ti interessa, c'e' anche un'opzione di protezione contro morosita', danni e assistenza legale. Ci facciamo una chiamata?",
+    "e nessuna provvigione, non lavoriamo come agenzia. Su richiesta possiamo offrirti anche una copertura opzionale su morosita', danni e questioni legali. Vuoi saperne di piu'?",
+    "e per te nessun costo, non siamo un'agenzia. Volendo, puoi aggiungere una protezione opzionale che ti copre da morosita', danni e ti da' assistenza legale. Ne parliamo?",
+    "e zero spese di mediazione da parte nostra. In piu', se ti interessa, puoi attivare una tutela opzionale contro morosita', danni e con supporto legale. Ti puo' interessare?",
+    "e non applichiamo commissioni di nessun tipo. Se vuoi, c'e' anche la possibilita' di una protezione opzionale completa: morosita', danni e assistenza legale. Che ne dici?",
 ]
 
 BUSINESS_KEYWORDS = [
@@ -131,7 +131,7 @@ def build_message(row: dict) -> tuple:
 
     hook = "Abbiamo richieste di inquilini verificati per quella zona —"
     no_ag = random.choice(NO_AGENCY_VARIANTS)
-    sig = "Mattia, Freedhome"
+    sig = "Luigi, FreedHome"
 
     parts = [opening]
     if price_str:
@@ -139,10 +139,6 @@ def build_message(row: dict) -> tuple:
     parts.append(f"{hook} {no_ag}")
     parts.append(sig)
     msg = "\n".join(parts)
-
-    if len(msg) > 280 and price_str:
-        parts = [opening, f"{hook} {no_ag}", sig]
-        msg = "\n".join(parts)
 
     return msg, parsed, name
 

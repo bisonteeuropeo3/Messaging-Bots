@@ -48,6 +48,8 @@ auth_state.json
 cookies.txt
 *_cookies.txt
 *cookies*.txt
+chrome_profile/
+*chrome_profile*/
 
 # ─────────────────────────────────────────────────────────────
 # Dataset di input (dati scrapati da Apify, personali)

@@ -16,6 +16,7 @@ from playwright.sync_api import sync_playwright
 
 from core.browser import (
     get_launch_args, create_context, login_interactive, save_snapshot,
+    launch_persistent, login_persistent,
 )
 from core.scheduler import Scheduler
 from core.progress import (
@@ -56,7 +57,7 @@ def _is_browser_dead(reason: str) -> bool:
 def run_batch(platform, page, context, pending: list[dict], batch_size: int,
               config: dict, progress: dict, progress_path: str,
               scheduler: Scheduler, logger: StructuredLogger,
-              browser=None, auth_path: str = "") -> tuple:
+              recreate_context=None) -> tuple:
     """
     Invia un batch di messaggi.
     Ritorna: (batch_sent, batch_errors, blocked, page, context)
@@ -132,18 +133,17 @@ def run_batch(platform, page, context, pending: list[dict], batch_size: int,
             print(f"    ERRORE ({status}): {reason}")
 
             # Se il browser e' crashato, ricrea context e page
-            if _is_browser_dead(reason) and browser and auth_path:
+            if _is_browser_dead(reason) and recreate_context:
                 print(f"    Browser crashato — ricreo context...")
                 logger.log_session(platform.name, "browser_recovery",
                                    reason="context/page chiuso, ricreo")
                 try:
-                    # Chiudi vecchio context se possibile
                     try:
                         context.close()
                     except Exception:
                         pass
-                    context = create_context(browser, config, auth_path)
-                    page = context.new_page()
+                    context = recreate_context()
+                    page = context.pages[0] if context.pages else context.new_page()
                     print(f"    Context ricreato OK")
                     time.sleep(random.uniform(2, 4))
                 except Exception as e:
@@ -213,7 +213,7 @@ def run_campaign(platform, script_dir: str, args):
     csv_path = os.path.join(script_dir, "listings_ready.csv")
     progress_path = os.path.join(script_dir, "progress.json")
     logs_dir = os.path.join(script_dir, "logs")
-    auth_path = os.path.join(script_dir, "auth_state.json")
+    user_data_dir = config.get("user_data_dir") or os.path.join(script_dir, "chrome_profile")
 
     listings = load_listings(csv_path)
     progress = load_progress(progress_path)
@@ -282,29 +282,39 @@ def run_campaign(platform, script_dir: str, args):
     campaign_sent = 0
     campaign_errors = 0
 
+    cdp_url = (config.get("cdp_url") or "").strip()
+    attached = bool(cdp_url)
+
     with sync_playwright() as p:
-        need_login = not os.path.exists(auth_path)
-        launch_args = get_launch_args(config)
+        if attached:
+            print(f"Connessione a Chrome esistente: {cdp_url}")
+            print("(assicurati di aver aperto Chrome con --remote-debugging-port)")
+            browser = p.chromium.connect_over_cdp(cdp_url)
+            context = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = context.pages[0] if context.pages else context.new_page()
 
-        if need_login:
-            print("Prima esecuzione — apertura browser per login...")
-            browser = p.chromium.launch(**launch_args)
-            login_interactive(browser, platform.login_url, auth_path, config)
-            browser.close()
+            def make_context():
+                # In modalita' CDP non si puo' ricreare il context: ritorna quello esistente.
+                return context
+        else:
+            os.makedirs(user_data_dir, exist_ok=True)
+            print(f"Profilo Chrome   : {user_data_dir}")
 
-        browser = p.chromium.launch(**launch_args)
-        context = create_context(browser, config, auth_path)
-        page = context.new_page()
+            def make_context():
+                return launch_persistent(p, config, user_data_dir)
+
+            context = make_context()
+            page = context.pages[0] if context.pages else context.new_page()
 
         print("Verifica sessione login...")
         if not platform.is_logged_in(page):
-            print("Sessione scaduta — ri-autenticazione necessaria.")
-            if os.path.exists(auth_path):
-                os.remove(auth_path)
-            context.close()
-            login_interactive(browser, platform.login_url, auth_path, config)
-            context = create_context(browser, config, auth_path)
-            page = context.new_page()
+            if attached:
+                print("ERRORE: non sei loggato nel browser collegato.")
+                print(f"Apri {platform.login_url} nella tua finestra Chrome,")
+                print("fai login, poi rilancia il bot.")
+                return
+            print("Login richiesto — apertura pagina login...")
+            login_persistent(context, platform.login_url)
 
         print("Login OK\n")
 
@@ -325,7 +335,7 @@ def run_campaign(platform, script_dir: str, args):
                 b_sent, b_errors, blocked, page, context = run_batch(
                     platform, page, context, all_pending, current_batch,
                     config, progress, progress_path, scheduler, logger,
-                    browser=browser, auth_path=auth_path,
+                    recreate_context=make_context,
                 )
 
                 campaign_sent += b_sent
@@ -371,12 +381,11 @@ def run_campaign(platform, script_dir: str, args):
             logger.log_session(platform.name, "crash",
                                error=traceback.format_exc())
         finally:
-            try:
-                context.storage_state(path=auth_path)
-            except Exception:
-                pass
-            context.close()
-            browser.close()
+            if not attached:
+                try:
+                    context.close()
+                except Exception:
+                    pass
 
     save_progress(progress, progress_path)
 

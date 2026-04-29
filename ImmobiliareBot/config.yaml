@@ -28,6 +28,20 @@ slow_mo: 50            # rallenta ogni azione browser (ms)
 typing_delay_min: 50   # velocita' battitura minima (ms per carattere)
 typing_delay_max: 130  # velocita' battitura massima (ms per carattere)
 
+# Profilo Chrome persistente (Option A — bypass anti-bot detection)
+# Lascia vuoto per usare ./chrome_profile/ relativo a questa cartella.
+# Puoi anche puntare al tuo profilo Chrome reale (chiudi prima Chrome!):
+#   user_data_dir: "C:/Users/olekj/AppData/Local/Google/Chrome/User Data/Profile 1"
+user_data_dir: ""
+
+# Attach a Chrome gia' aperto (Option B — usa IL TUO browser, non uno nuovo)
+# Apri Chrome manualmente cosi':
+#   "C:/Program Files/Google/Chrome/Application/chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:/chrome-bot-profile"
+# Fai login su immobiliare.it nella finestra che si apre, poi lancia il bot.
+# Il bot si attacca a quella finestra invece di aprirne una nuova.
+# Lascia vuoto per disabilitare (e usare user_data_dir sopra).
+cdp_url: "http://127.0.0.1:9222"
+
 # Viewport random (simula schermi diversi)
 viewport_widths: [1280, 1366, 1440, 1536, 1600, 1920]
 viewport_heights: [800, 900, 960, 1024, 1080]

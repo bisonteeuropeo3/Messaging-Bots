@@ -12,6 +12,8 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
+> Da questa versione il bot si attacca a una finestra **Chrome reale** (la tua) tramite CDP, invece di lanciare un Chromium separato. Bypassa la maggior parte delle detection anti-bot.
+
 ---
 
 ## Struttura cartelle
@@ -38,7 +40,7 @@ platforms/               ← selettori per piattaforma (non toccare)
 
 ---
 
-## Come usare: 2 passi
+## Come usare: 3 passi
 
 ### Passo 1 — Genera i messaggi
 
@@ -55,7 +57,34 @@ cd SubitoBot && python generate_messages.py
 cd IdealistaBot && python generate_messages.py
 ```
 
-### Passo 2 — Invia i messaggi
+### Passo 2 — Apri Chrome con la porta di debug
+
+Da terminale (Windows / macOS / Linux):
+
+```bash
+python start_chrome.py
+```
+
+In alternativa su Windows: **doppio click su `start_chrome.bat`**.
+
+Si apre una finestra Chrome dedicata al bot, su un profilo separato:
+- Windows: `C:\chrome-bot-profile`
+- macOS / Linux: `~/chrome-bot-profile`
+
+La prima volta fai login a immobiliare.it / subito.it / idealista.it manualmente in quella finestra. Da li' in poi il login resta salvato.
+
+> **Lascia quella finestra Chrome aperta** durante l'invio. Se la chiudi, il bot si disconnette.
+
+In alternativa, comando Chrome diretto:
+```bash
+# Windows
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\chrome-bot-profile"
+
+# macOS
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/chrome-bot-profile"
+```
+
+### Passo 3 — Invia i messaggi
 
 ```bash
 python send_messages.py --total 400 --batch 50 --pause 20
@@ -161,13 +190,13 @@ Totale: 300 messaggi, distribuiti su 3 piattaforme, ~8 ore.
    ```bash
    rm listings_ready.csv progress.json
    ```
-3. Rigenera e invia:
+3. Apri Chrome con `python start_chrome.py` (o `start_chrome.bat` su Windows), poi:
    ```bash
    python generate_messages.py
    python send_messages.py --total 400 --batch 50 --pause 20
    ```
 
-> NON eliminare `auth_state.json` — contiene il login salvato.
+> NON eliminare la cartella `C:\chrome-bot-profile` (Windows) o `~/chrome-bot-profile` (macOS/Linux) — contiene il login Chrome salvato.
 
 ---
 
@@ -211,11 +240,14 @@ max_per_day: 60
 | Problema | Soluzione |
 |---|---|
 | "BLOCCATO" | Cambia IP (VPN), aspetta 4-6h, riparti |
-| "Sessione scaduta" | Elimina `auth_state.json`, rilancia |
+| `ECONNREFUSED 9222` | Chrome non aperto con la porta di debug — lancia `python start_chrome.py` |
+| `ECONNREFUSED ::1:9222` | `cdp_url` usa `localhost`, sostituisci con `127.0.0.1` in `config.yaml` |
+| "Login richiesto" / "non sei loggato" | Apri Chrome via `python start_chrome.py`, fai login manualmente, rilancia il bot |
 | "Textarea non trovata" | Annuncio scaduto o layout cambiato, guarda `snapshots/` |
 | "limite orario raggiunto" | Aspetta 1 ora o modifica `max_per_hour` |
 | "Nessun CSV trovato" | Metti il CSV nella cartella giusta |
 | Il bot non parte | `pip install -r requirements.txt && playwright install chromium` |
+| Chrome chiuso a meta' campagna | Riapri con `python start_chrome.py`, rilancia `send_messages.py` (riprende da `progress.json`) |
 
 ---
 
@@ -225,6 +257,28 @@ max_per_day: 60
 |---|---|
 | `listings_ready.csv` | Messaggi pronti all'invio |
 | `progress.json` | Traccia di cosa e' stato inviato |
-| `auth_state.json` | Sessione login browser |
+| `start_chrome.py` / `start_chrome.bat` | Launcher Chrome con porta di debug (Python cross-platform / batch Windows) |
 | `logs/` | Log dettagliati per sessione (JSONL) |
 | `snapshots/` | Screenshot e HTML quando qualcosa va storto |
+| `C:\chrome-bot-profile\` | Profilo Chrome dedicato al bot (login, cookie, ecc.) |
+
+> Il vecchio file `auth_state.json` non e' piu' usato — puoi eliminarlo se esiste.
+
+---
+
+## Configurazione Chrome (config.yaml)
+
+Due modalita' disponibili in [config.yaml](config.yaml):
+
+### Modalita' attiva: attach a Chrome esistente (consigliata)
+```yaml
+cdp_url: "http://127.0.0.1:9222"
+```
+Il bot si attacca alla finestra Chrome aperta con `python start_chrome.py` (o `start_chrome.bat`). Migliore stealth — usa il tuo Chrome reale, fingerprint identico.
+
+### Modalita' alternativa: profilo persistente automatico
+```yaml
+cdp_url: ""
+user_data_dir: ""    # vuoto = usa ./chrome_profile/
+```
+Il bot apre Chrome da solo con un profilo dedicato. Non serve `start_chrome.bat`. Buona stealth ma il profilo e' "fresco" (no extensions, no history reale).

@@ -197,5 +197,57 @@ def login_interactive(browser: Browser, login_url: str,
     context.close()
 
 
+def launch_persistent(p, config: dict, user_data_dir: str) -> BrowserContext:
+    """
+    Lancia Chrome reale con un profilo utente persistente.
+    Eredita cookies, history e fingerprint del profilo — molto piu' resistente
+    al rilevamento anti-bot rispetto a un context vuoto + storage_state.
+    """
+    widths = config.get("viewport_widths", [1280, 1366, 1440, 1536])
+    heights = config.get("viewport_heights", [800, 900, 960, 1024])
+
+    context = p.chromium.launch_persistent_context(
+        user_data_dir=user_data_dir,
+        channel="chrome",
+        headless=config.get("headless", False),
+        slow_mo=config.get("slow_mo", 50),
+        viewport={"width": random.choice(widths), "height": random.choice(heights)},
+        locale="it-IT",
+        timezone_id="Europe/Rome",
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
+            "--no-first-run",
+            "--no-default-browser-check",
+        ],
+    )
+
+    context.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5],
+        });
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['it-IT', 'it', 'en-US', 'en'],
+        });
+        window.chrome = { runtime: {} };
+    """)
+
+    return context
+
+
+def login_persistent(context: BrowserContext, login_url: str):
+    """Apre login nel profilo persistente — Chrome salva la sessione da solo."""
+    page = context.pages[0] if context.pages else context.new_page()
+    page.goto(login_url, wait_until="domcontentloaded")
+    print()
+    print("=" * 60)
+    print(f"  AZIONE RICHIESTA: fai login su {login_url}")
+    print("  Quando hai completato il login, torna qui e premi ENTER")
+    print("=" * 60)
+    input()
+    print("  Sessione salvata nel profilo Chrome.")
+
+
 def _small_pause(page: Page):
     time.sleep(random.uniform(0.15, 0.35))
