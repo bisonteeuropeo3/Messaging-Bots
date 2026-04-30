@@ -88,21 +88,77 @@ class Subito(Platform):
     url_field = "page_url"
 
     def is_logged_in(self, page: Page) -> bool:
+        # 1. Cookies — il modo piu' affidabile, non dipende da DOM/selettori
+        try:
+            cookies = page.context.cookies()
+            login_markers = ("login", "session", "auth", "user", "sso", "token",
+                             "sbtsessid", "pulse", "schibsted")
+            for c in cookies:
+                name = (c.get("name") or "").lower()
+                domain = (c.get("domain") or "").lower()
+                if "subito" not in domain and "schibsted" not in domain:
+                    continue
+                if any(m in name for m in login_markers):
+                    return True
+        except Exception:
+            pass
+
+        # 2. Verifica pagina riservata — se accessibile senza redirect a login,
+        #    sei loggato. Funziona indipendentemente dai selettori.
+        try:
+            page.goto("https://areariservata.subito.it/annunci",
+                      wait_until="domcontentloaded", timeout=15000)
+            current = page.url.lower()
+            if "login" not in current and "areariservata.subito.it" in current:
+                return True
+            if "login" in current:
+                return False
+        except Exception:
+            pass
+
+        # 3. Fallback: cerca indicatori UI sulla home (timeout breve, non blocca)
         try:
             page.goto("https://www.subito.it/",
-                       wait_until="domcontentloaded", timeout=15000)
+                      wait_until="commit", timeout=8000)
+        except Exception:
+            return False
+
+        try:
+            page.wait_for_load_state("domcontentloaded", timeout=6000)
+        except Exception:
+            pass
+
+        try:
             accept_cookies(page)
-            # Il menu loggato mostra il nome utente nella classe 'username'
-            # e ha link a /profilo, /annunci, logout ecc.
+        except Exception:
+            pass
+
+        try:
             indicator = page.locator(
                 "[class*='username'], "
                 "[class*='user-menu'], "
+                "[class*='UserMenu'], "
+                "[class*='avatar'], "
                 "[href*='areariservata.subito.it/annunci'], "
                 "[href*='areariservata.subito.it/logout'], "
-                "[class*='UserMenu'], "
-                "[class*='avatar']"
+                "[href*='/profilo'], "
+                "[href*='/logout'], "
+                "[data-testid*='user'], "
+                "[aria-label*='profilo' i], "
+                "[aria-label*='account' i]"
             ).first
-            return indicator.is_visible(timeout=5000)
+            if indicator.is_visible(timeout=3000):
+                return True
+        except Exception:
+            pass
+
+        # 4. Ultimo fallback: cerca link "Accedi" — se NON c'e', sei loggato
+        try:
+            login_link = page.locator(
+                "a:has-text('Accedi'), button:has-text('Accedi'), "
+                "a[href*='login']:has-text('Accedi')"
+            ).first
+            return not login_link.is_visible(timeout=2000)
         except Exception:
             return False
 

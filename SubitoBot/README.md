@@ -1,65 +1,123 @@
 # SubitoBot — Guida operativa
 
-## Come funziona
+Bot per invio automatico messaggi su **subito.it**.
 
-Il bot si compone di due step eseguiti in sequenza:
-
-```
-[Step 1]  generate_messages.py   →   crea listings_ready.csv
-[Step 2]  send_messages.py       →   invia i messaggi su subito.it
-```
-
-> Solo gli annunci di **privati** vengono processati — le aziende sono automaticamente escluse.
-
-Il motore condivide lo stesso core di ImmobiliareBot (`core/engine.py`, `core/browser.py`, `core/scheduler.py`) con tutte le protezioni anti-detection integrate.
+> Questa versione usa la modalita' **CDP attach**: apri Chrome con un profilo dedicato, fai login una volta, e il bot si attacca alla finestra esistente. Niente piu' `auth_state.json`, niente piu' login interattivo da terminale.
 
 ---
 
-## Step 1 — Generare i messaggi
+## Setup (una sola volta)
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+> Solo gli annunci di **privati** vengono processati — le aziende sono escluse automaticamente.
+
+---
+
+## Flusso a 3 step
+
+### Step 1 — Genera i messaggi
+
+Metti il CSV di Apify nella cartella, poi:
 
 ```bash
 python generate_messages.py
 ```
 
-**Input:** un file `Subito_scraper*.csv` nella stessa cartella (esportato da Apify).
-**Output:** `listings_ready.csv` con i messaggi personalizzati pronti all'invio.
+**Input:** un file `Subito_scraper*.csv` (export Apify) nella stessa cartella.
+**Output:** `listings_ready.csv` con messaggi personalizzati pronti.
 
-Alla fine stampa un'anteprima dei primi 3 messaggi per controllo rapido.
+Alla fine stampa un'anteprima dei primi 3 messaggi per controllo.
 
 ---
 
-## Step 2 — Inviare i messaggi
+### Step 2 — Apri Chrome con la porta di debug
 
+#### Windows
+Doppio click su **`start_chrome.bat`**, oppure da terminale:
 ```bash
-python send_messages.py
+python start_chrome.py
 ```
 
-**Prima esecuzione:** si apre Chrome, fai login su subito.it manualmente, poi torna al terminale e premi **ENTER**. La sessione viene salvata e non ti verra' richiesta di nuovo.
+#### macOS
+Doppio click su **`start_chrome.command`** (la prima volta: `chmod +x start_chrome.command`),
+oppure da terminale:
+```bash
+python start_chrome.py
+```
 
-**Opzioni:**
+#### Linux
+```bash
+python start_chrome.py
+```
+
+Si apre una finestra Chrome dedicata al bot, su un profilo separato:
+- Windows: `C:\chrome-bot-profile`
+- macOS / Linux: `~/chrome-bot-profile`
+
+**La prima volta** fai login a subito.it manualmente in quella finestra. Da li' in poi il login resta salvato — non te lo richiede piu'.
+
+> **Lascia quella finestra Chrome aperta** mentre il bot lavora. Se la chiudi, il bot si disconnette.
+
+Comando Chrome diretto (alternativa, se gli script non funzionano):
+```bash
+# Windows
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="C:\chrome-bot-profile" https://areariservata.subito.it/login_form
+
+# macOS
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222 --user-data-dir="$HOME/chrome-bot-profile" https://areariservata.subito.it/login_form
+```
+
+---
+
+### Step 3 — Invia i messaggi
+
+```bash
+python send_messages.py --total 400 --batch 50 --pause 20
+```
+
+Il bot:
+- Si attacca alla finestra Chrome aperta allo Step 2
+- Verifica che sei loggato (cookies + redirect check)
+- Invia 50 messaggi
+- Pausa 20 minuti
+- Ripete fino a 400 totali
+
+Riprende automaticamente da dove si era fermato (traccia in `progress.json`).
+
+---
+
+## Opzioni `send_messages.py`
 
 | Opzione | Default | Descrizione |
 |---|---|---|
 | `--total N` | 0 (tutti) | Totale messaggi da inviare |
 | `--batch N` | 50 | Messaggi per batch prima della pausa inter-sessione |
-| `--pause N` | 20 | Minuti di pausa tra un batch e l'altro |
+| `--pause N` | 20 | Minuti di pausa tra batch |
 | `--dry-run` | off | Simula senza inviare (mostra anteprima) |
-| `--config PATH` | `config.yaml` | File di configurazione personalizzato |
+| `--config PATH` | `config.yaml` | File configurazione personalizzato |
 
 ### Esempi
 
 ```bash
-# Riprende da dove era rimasto (tutti i pending)
+# Riprende da dove era rimasto
 python send_messages.py
 
-# 400 messaggi, batch da 50, pausa 20 min tra batch
+# 400 messaggi, batch da 50, pausa 20 min
 python send_messages.py --total 400 --batch 50 --pause 20
+
+# Sessione veloce
+python send_messages.py --total 100 --batch 25 --pause 15
+
+# Sessione ultra-sicura (rate limit aggressivo da subito)
+python send_messages.py --total 200 --batch 30 --pause 30
 
 # Simulazione senza invio
 python send_messages.py --dry-run --total 100
 ```
-
-Il bot **riprende automaticamente** da dove si era fermato (tiene traccia in `progress.json`).
 
 ---
 
@@ -68,113 +126,103 @@ Il bot **riprende automaticamente** da dove si era fermato (tiene traccia in `pr
 Tutto gestito automaticamente dal core condiviso + `config.yaml`:
 
 **Browser fingerprint:**
-- User agent Chrome rotanti (4 versioni reali)
-- Viewport randomizzato ad ogni sessione
+- Profilo Chrome reale (cookies, history, extensions tuoi) via CDP
+- User agent e viewport del Chrome reale
 - Flag `navigator.webdriver` nascosto
-- Plugins e languages simulati
-- Chrome runtime iniettato
 - `AutomationControlled` disabilitato
 
 **Interazioni umane:**
 - Click con offset casuale dal centro dell'elemento
-- Digitazione con velocita' variabile (40-130ms/carattere) + pause "di pensiero"
-- Scroll graduale che simula la lettura dell'annuncio
-- Pause random tra ogni step (caricamento, lettura, compilazione)
+- Digitazione carattere per carattere (40-130ms)
+- Scroll graduale che simula la lettura
+- Pause random tra ogni step
 
 **Rate limiting:**
 - Delay gaussiano tra messaggi (25-55s di default)
-- Pausa lunga ogni 4-7 messaggi (1-3 minuti)
-- Limite orario (25 msg/h) e giornaliero (100 msg/giorno)
-- Cooldown progressivo dopo errore (backoff esponenziale)
+- Pausa lunga ogni 4-7 messaggi (1-3 min)
+- Limite orario e giornaliero
+- Cooldown progressivo dopo errore (backoff)
 - Pausa tra batch (default 20 min con jitter)
 
-Tutti i valori sono configurabili in `config.yaml`.
+Tutti i valori sono configurabili in [config.yaml](config.yaml).
 
 ---
 
-## Configurazione (`config.yaml`)
+## Configurazione Chrome (`config.yaml`)
 
+Due modalita' disponibili:
+
+### Modalita' attiva: attach a Chrome esistente (consigliata)
 ```yaml
-# Timing tra messaggi (secondi)
-delay_min: 25
-delay_max: 55
-
-# Pausa lunga ogni N messaggi
-pause_every_min: 4
-pause_every_max: 7
-pause_duration_min: 60    # secondi
-pause_duration_max: 180   # secondi
-
-# Cooldown dopo errore
-error_cooldown_min: 60
-error_cooldown_max: 120
-
-# Limiti di sicurezza
-max_per_session: 0        # 0 = nessun limite
-max_per_hour: 25
-max_per_day: 100
-max_consecutive_errors: 3
-
-# Browser
-headless: false
-slow_mo: 50
-typing_delay_min: 40
-typing_delay_max: 130
-
-# Viewport random
-viewport_widths: [1280, 1366, 1440, 1536, 1600, 1920]
-viewport_heights: [800, 900, 960, 1024, 1080]
+cdp_url: "http://127.0.0.1:9222"
 ```
+Il bot si attacca alla finestra Chrome aperta con `start_chrome.py`. Migliore stealth — Chrome reale, fingerprint identico.
+
+### Modalita' alternativa: profilo persistente automatico
+```yaml
+cdp_url: ""
+user_data_dir: ""    # vuoto = usa ./chrome_profile/
+```
+Il bot lancia Chrome da solo con un profilo dedicato. Non serve `start_chrome.py`.
 
 ---
 
 ## Caricare un nuovo dataset (nuova campagna)
 
-1. Scarica il nuovo CSV da Apify e mettilo nella cartella del bot
-2. **Elimina** i file della sessione precedente:
+1. Scarica il nuovo CSV da Apify e mettilo nella cartella
+2. Elimina i file della sessione precedente:
    ```bash
+   # Windows
+   del listings_ready.csv progress.json
+   # macOS / Linux
    rm listings_ready.csv progress.json
    ```
-   > Non eliminare `auth_state.json` — contiene il login e puoi riutilizzarlo.
 3. Riesegui dallo Step 1:
    ```bash
    python generate_messages.py
-   python send_messages.py --total 50
+   python send_messages.py --total 400 --batch 50 --pause 20
    ```
 
-> **Nota:** se nella cartella ci sono piu' file CSV, lo script prende automaticamente il **piu' recente** tra quelli che matchano `Subito_scraper*.csv`, `Subito*.csv` o `dataset_subito*.csv`.
+> NON eliminare la cartella `chrome-bot-profile` — contiene il login salvato.
 
----
-
-## Ricominciare da zero (reset completo)
-
-Elimina questi file:
-
-| File | Cosa contiene |
-|---|---|
-| `listings_ready.csv` | Annunci + messaggi generati |
-| `progress.json` | Traccia degli invii effettuati |
-| `auth_state.json` | Sessione di login (elimina solo se vuoi rifare il login) |
-
-Lascia i file CSV se vuoi riprocessarli, oppure sostituiscili con il nuovo export.
+> Se nella cartella ci sono piu' file CSV, lo script prende automaticamente il **piu' recente** tra quelli che matchano `Subito_scraper*.csv`, `Subito*.csv` o `dataset_subito*.csv`.
 
 ---
 
 ## File presenti nella cartella
 
 ```
-Subito_scraper*.csv    → export raw da Apify (input)
-listings_ready.csv     → annunci con messaggi generati (generato da Step 1)
-progress.json          → stato degli invii (generato da Step 2)
-auth_state.json        → sessione login Chrome (generato al primo avvio)
-config.yaml            → configurazione timing, limiti e browser
-screenshots/           → screenshot automatici in caso di errore
-snapshots/             → HTML snapshots per debug
-logs/                  → log strutturati JSONL per sessione
-generate_messages.py   → Step 1
-send_messages.py       → Step 2
-requirements.txt       → dipendenze Python
+Subito_scraper*.csv     → export raw da Apify (input)
+listings_ready.csv      → annunci con messaggi (generato Step 1)
+progress.json           → stato invii (generato Step 2)
+config.yaml             → configurazione timing/limiti/browser
+generate_messages.py    → Step 1
+send_messages.py        → Step 2 / 3
+start_chrome.py         → launcher Chrome cross-platform
+start_chrome.bat        → launcher Chrome (Windows double-click)
+start_chrome.command    → launcher Chrome (macOS double-click)
+screenshots/            → screenshot in caso di errore
+snapshots/              → HTML snapshot per debug
+logs/                   → log JSONL per sessione
 ```
+
+> Il vecchio `auth_state.json` non e' piu' usato — puoi eliminarlo se esiste.
+
+---
+
+## Problemi comuni
+
+| Problema | Soluzione |
+|---|---|
+| "non sei loggato nel browser collegato" | Apri subito.it in `chrome-bot-profile` e fai login manualmente, poi rilancia |
+| `ECONNREFUSED 9222` | Chrome non aperto con porta debug — lancia `start_chrome.py` |
+| `ECONNREFUSED ::1:9222` | Sostituisci `localhost` con `127.0.0.1` in `cdp_url` |
+| "Bottone Contatta non trovato" | Annuncio scaduto o layout cambiato — guarda `snapshots/` |
+| "Bloccato / blocco anti-bot" | Cambia IP (VPN), aspetta 4-6h, riparti |
+| "Limite orario raggiunto" | Aspetta 1 ora o modifica `max_per_hour` in `config.yaml` |
+| "Nessun CSV trovato" | Metti il CSV nella cartella SubitoBot |
+| Chrome chiuso a meta' campagna | Riapri con `start_chrome.py`, rilancia (riprende da `progress.json`) |
+| `start_chrome.command` non si apre (macOS) | `chmod +x start_chrome.command` |
 
 ---
 
@@ -184,27 +232,5 @@ requirements.txt       → dipendenze Python
 |---|---|---|
 | Sito target | immobiliare.it | subito.it |
 | Campo URL nel CSV | `directLink` | `page_url` |
-| Campo nome | `advertiser/supervisor/displayName` | `advertiser/name` |
 | Filtro aziende | no | si (escluse automaticamente) |
 | Flow invio | textarea visibile in pagina | click "Contatta" → textarea → "Invia" |
-
----
-
-## Problemi comuni
-
-**"Textarea non trovata"**
-Subito potrebbe aver cambiato il layout del form di contatto. Controlla gli screenshot nella cartella `screenshots/` per capire cosa vede il bot. Potrebbe anche essere un annuncio scaduto.
-
-**"Sessione scaduta"**
-Elimina `auth_state.json` e rilancia — ti chiedera' di rifare il login.
-
-**"Nessun CSV di Subito trovato"**
-Il CSV di Apify non e' nella stessa cartella dello script. Spostalo li'. Il file deve chiamarsi `Subito_scraper*.csv` o simile.
-
-**"Bloccato / rilevato blocco anti-bot"**
-- Disconnetti e riconnetti il router (cambia IP)
-- Aspetta qualche ora prima di riprovare
-- Il bot si ferma automaticamente se rileva un blocco
-
-**"Rate limit raggiunto"**
-Il bot si mette in pausa automaticamente e riprende quando il limite orario/giornaliero lo permette.
